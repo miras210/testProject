@@ -42,8 +42,8 @@ func (s *StatsRepository) GetStats(from, to time.Time, filter *models.Filter) ([
 	defer cancel()
 
 	s.logger.Infof("Filter: %s", filter)
-	query := fmt.Sprintf(`SELECT * FROM stats WHERE date BETWEEN $1 AND $2 ORDER BY $3 %s`, filter.SortAsc)
-	rows, err := s.db.QueryContext(ctx, query, from, to, filter.SortColumn)
+	query := fmt.Sprintf(`SELECT * FROM stats WHERE date BETWEEN $1 AND $2 ORDER BY %s %s`, filter.SortColumn, filter.SortAsc)
+	rows, err := s.db.QueryContext(ctx, query, from, to)
 	if err != nil {
 		s.logger.Errorf("Error during getting statistics: %s", err.Error())
 		return nil, models.ErrDBError

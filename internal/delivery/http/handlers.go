@@ -15,15 +15,6 @@ const dateLayout = "2006-01-02"
 const defaultFrom = "2000-01-01"
 const defaultTo = "3000-01-01"
 
-const (
-	sortByDate = iota
-	sortByViews
-	sortByClicks
-	sortByCost
-	sortByCpc
-	sortByCpm
-)
-
 type Handler struct {
 	service *service.Service
 	logger  *zap.SugaredLogger
@@ -74,7 +65,13 @@ func (h *Handler) CreateStats(c *gin.Context) {
 		})
 		return
 	}
-	h.logger.Infof("Unmarshalled object: %v", statsRequest)
+	if !validateStats(*statsRequest) {
+		h.logger.Error("Error occurred during validation")
+		c.JSON(401, gin.H{
+			"error": models.ErrInvalidInput.Error(),
+		})
+		return
+	}
 	err = h.service.CreateStats(statsRequest)
 	if err != nil {
 		h.logger.Errorf("Error occured while creating statistics: %s", err.Error())
@@ -110,6 +107,13 @@ func (h *Handler) GetStats(c *gin.Context) {
 		})
 		return
 	}
+	if !validateDates(from, to) {
+		h.logger.Errorf("Error occurred while validating query params: %s", err.Error())
+		c.JSON(401, gin.H{
+			"error": models.ErrInvalidInput.Error(),
+		})
+		return
+	}
 
 	filter := models.NewFilter(sortFlag)
 	stats, err := h.service.GetStats(from, to, filter)
@@ -140,10 +144,16 @@ func (h *Handler) DeleteStats(c *gin.Context) {
 	})
 }
 
-func validateDates(from, to time.Time) bool {
-	return from.Before(to)
+func validateStats(stats models.Stats) bool {
+	if stats.Views < 0 || stats.Clicks < 0 || stats.Cost < 0 {
+		return false
+	}
+	if stats.Date.After(time.Now()) {
+		return false
+	}
+	return true
 }
 
-func validatePositive(num int) bool {
-	return num >= 0
+func validateDates(from, to time.Time) bool {
+	return from.Before(to)
 }
