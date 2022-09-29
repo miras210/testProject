@@ -1,0 +1,36 @@
+version: '3'
+services:
+  postgres:
+    container_name: postgres-stats
+    image: postgres:11-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres-vol:/var/lib/postgresql/data
+      - ./postgres-init/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - stats
+
+  myapp:
+    container_name: stats-service
+    ports:
+      - "3000:3000"
+    build:
+      context: ./
+      dockerfile: build/Dockerfile
+    restart: always
+    networks:
+      - stats
+    volumes:
+      - ./config/config.yaml:/app/config.yaml:ro
+    environment:
+      - APP_MODE=dev
+networks:
+  stats:
+    driver: bridge
+volumes:
+  postgres-vol:
