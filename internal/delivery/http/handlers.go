@@ -15,6 +15,15 @@ const dateLayout = "2006-01-02"
 const defaultFrom = "2000-01-01"
 const defaultTo = "3000-01-01"
 
+const (
+	sortByDate = iota
+	sortByViews
+	sortByClicks
+	sortByCost
+	sortByCpc
+	sortByCpm
+)
+
 type Handler struct {
 	service *service.Service
 	logger  *zap.SugaredLogger
@@ -83,6 +92,7 @@ func (h *Handler) CreateStats(c *gin.Context) {
 func (h *Handler) GetStats(c *gin.Context) {
 	fromStr := c.DefaultQuery("from", defaultFrom)
 	toStr := c.DefaultQuery("to", defaultTo)
+	sortFlag := c.DefaultQuery("sort_by", "-date")
 
 	from, err := time.Parse(dateLayout, fromStr)
 	if err != nil {
@@ -101,7 +111,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.service.GetStats(from, to)
+	filter := models.NewFilter(sortFlag)
+	stats, err := h.service.GetStats(from, to, filter)
 	if err != nil {
 		h.logger.Errorf("Error occurred while getting statistics: %s", err.Error())
 		c.JSON(500, gin.H{
@@ -109,20 +120,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 		})
 		return
 	}
-	statsOutputs := make([]*StatsGetOutput, 0)
-	for _, v := range stats {
-		statsOutput := &StatsGetOutput{}
-		statsOutput.Date = v.Date
-		statsOutput.Views = v.Views
-		statsOutput.Clicks = v.Clicks
-		statsOutput.Cost = v.Cost
-		statsOutput.Cpc = v.Cost / float32(v.Clicks)
-		statsOutput.Cpm = v.Cost / float32(v.Views) * 1000
-
-		statsOutputs = append(statsOutputs, statsOutput)
-	}
 	c.JSON(200, gin.H{
-		"statistics": statsOutputs,
+		"statistics": stats,
 	})
 }
 
@@ -139,4 +138,12 @@ func (h *Handler) DeleteStats(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status": "OK",
 	})
+}
+
+func validateDates(from, to time.Time) bool {
+	return from.Before(to)
+}
+
+func validatePositive(num int) bool {
+	return num >= 0
 }

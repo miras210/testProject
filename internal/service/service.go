@@ -14,7 +14,7 @@ type Service struct {
 
 type Stats interface {
 	CreateStats(stats *models.Stats) error
-	GetStats(from, to time.Time) ([]*models.Stats, error)
+	GetStats(from, to time.Time, filter *models.Filter) ([]*models.FullStats, error)
 	DeleteStats() error
 }
 

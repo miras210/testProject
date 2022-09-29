@@ -23,11 +23,19 @@ func NewStatsService(statsRepo repository.Stats, cfg *config.Configs, log *zap.S
 }
 
 func (s *StatsService) CreateStats(stats *models.Stats) error {
-	return s.statsRepo.CreateStats(stats)
+	fullStats := &models.FullStats{
+		Date:   stats.Date,
+		Views:  stats.Views,
+		Clicks: stats.Clicks,
+		Cost:   stats.Cost,
+		Cpc:    stats.Cost / float32(stats.Clicks),
+		Cpm:    stats.Cost / float32(stats.Views) * 1000,
+	}
+	return s.statsRepo.CreateStats(fullStats)
 }
 
-func (s *StatsService) GetStats(from, to time.Time) ([]*models.Stats, error) {
-	return s.statsRepo.GetStats(from, to)
+func (s *StatsService) GetStats(from, to time.Time, filter *models.Filter) ([]*models.FullStats, error) {
+	return s.statsRepo.GetStats(from, to, filter)
 }
 
 func (s *StatsService) DeleteStats() error {

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"go.uber.org/zap"
 	"testProject/internal/models"
 	"time"
@@ -22,12 +23,13 @@ func newStatsRepo(db *sql.DB, timeout time.Duration, logger *zap.SugaredLogger) 
 	}
 }
 
-func (s *StatsRepository) CreateStats(stats *models.Stats) error {
+func (s *StatsRepository) CreateStats(stats *models.FullStats) error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
 
-	query := `INSERT INTO stats VALUES ($1, $2, $3, $4) RETURNING stats_date`
-	if err := s.db.QueryRowContext(ctx, query, stats.Date.Time, stats.Views, stats.Clicks, stats.Cost).Scan(&stats.Date.Time); err != nil {
+	query := `INSERT INTO stats VALUES ($1, $2, $3, $4, $5, $6) RETURNING date`
+	if err := s.db.QueryRowContext(ctx, query, stats.Date.Time, stats.Views,
+		stats.Clicks, stats.Cost, stats.Cpc, stats.Cpm).Scan(&stats.Date.Time); err != nil {
 		s.logger.Errorf("Error occured while querying to DB: %s", err.Error())
 		return err
 	}
@@ -35,23 +37,26 @@ func (s *StatsRepository) CreateStats(stats *models.Stats) error {
 	return nil
 }
 
-func (s *StatsRepository) GetStats(from, to time.Time) ([]*models.Stats, error) {
+func (s *StatsRepository) GetStats(from, to time.Time, filter *models.Filter) ([]*models.FullStats, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
 
-	query := `SELECT * FROM stats WHERE stats_date BETWEEN $1 AND $2 ORDER BY stats_date DESC`
-	rows, err := s.db.QueryContext(ctx, query, from, to)
+	s.logger.Infof("Filter: %s", filter)
+	query := fmt.Sprintf(`SELECT * FROM stats WHERE date BETWEEN $1 AND $2 ORDER BY $3 %s`, filter.SortAsc)
+	rows, err := s.db.QueryContext(ctx, query, from, to, filter.SortColumn)
 	if err != nil {
+		s.logger.Errorf("Error during getting statistics: %s", err.Error())
 		return nil, models.ErrDBError
 	}
 	defer rows.Close()
 
-	stats := make([]*models.Stats, 0)
+	stats := make([]*models.FullStats, 0)
 	for rows.Next() {
-		var stat models.Stats
-		if err := rows.Scan(&stat.Date.Time, &stat.Views, &stat.Clicks, &stat.Cost); err != nil {
+		var stat models.FullStats
+		if err := rows.Scan(&stat.Date.Time, &stat.Views, &stat.Clicks, &stat.Cost, &stat.Cpc, &stat.Cpm); err != nil {
 			return nil, models.ErrDBError
 		}
+		s.logger.Infof("Stat: %v", stat)
 		stats = append(stats, &stat)
 	}
 	if err := rows.Err(); err != nil {

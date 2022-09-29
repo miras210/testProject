@@ -12,8 +12,8 @@ type Repository struct {
 }
 
 type Stats interface {
-	CreateStats(stats *models.Stats) error
-	GetStats(from, to time.Time) ([]*models.Stats, error)
+	CreateStats(stats *models.FullStats) error
+	GetStats(from, to time.Time, filter *models.Filter) ([]*models.FullStats, error)
 	DeleteStats() error
 }
 
