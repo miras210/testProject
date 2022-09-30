@@ -23,13 +23,25 @@ func NewStatsService(statsRepo repository.Stats, cfg *config.Configs, log *zap.S
 }
 
 func (s *StatsService) CreateStats(stats *models.Stats) error {
+	var cpc float32
+	var cpm float32
+	if stats.Clicks == 0 {
+		cpc = 0
+	} else {
+		cpc = stats.Cost / float32(stats.Clicks)
+	}
+	if stats.Views == 0 {
+		cpm = 0
+	} else {
+		cpm = stats.Cost / float32(stats.Views) * 1000
+	}
 	fullStats := &models.FullStats{
 		Date:   stats.Date,
 		Views:  stats.Views,
 		Clicks: stats.Clicks,
 		Cost:   stats.Cost,
-		Cpc:    stats.Cost / float32(stats.Clicks),
-		Cpm:    stats.Cost / float32(stats.Views) * 1000,
+		Cpc:    cpc,
+		Cpm:    cpm,
 	}
 	return s.statsRepo.CreateStats(fullStats)
 }
